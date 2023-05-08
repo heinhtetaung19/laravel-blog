@@ -22,27 +22,108 @@
 		<div class="container mt-4 mx-auto" style="max-width: 600px">
 			<h1 class="h4 mb-4">Category Manager</h1>
 
-			<div class="mt-4">
+			<div id="login" class="mt-4">
 				<div class="input-group mb-4">
-					<input type="text" class="form-control" id="new" />
-					<button id="add" class="bg-warning">
+					<input
+						type="email"
+						class="form-control"
+						placeholder="email"
+						id="email"
+					/>
+
+					<!-- <button id="add" class="bg-primary text-white">
 						<i class="bi bi-plus-lg h3"></i>
-					</button>
+					</button> -->
 				</div>
+				<div class="mb-2">
+					<input
+						type="password"
+						id="password"
+						placeholder="Password"
+						class="form-control"
+					/>
+				</div>
+
+				<button class="btn btn-primary">Login</button>
 			</div>
-			<ul id="list" class="list-group" style="max-width: 600px"></ul>
+
+			<div id="main" class="d-none">
+				<div class="mt-4">
+					<button class="btn btn-primary float-end" id="logout">
+						Logout
+					</button>
+					<div class="input-group mb-4">
+						<input type="text" class="form-control" id="new" />
+						<button id="add" class="bg-primary text-white">
+							<i class="bi bi-plus-lg h3"></i>
+						</button>
+					</div>
+				</div>
+				<ul id="list" class="list-group" style="max-width: 600px"></ul>
+			</div>
 		</div>
 
 		<script>
 			const api = 'http://localhost:8000/api';
+			let token = null;
+			console.log('token', token);
 
-			fetch(`${api}/categories`)
-				.then(res => res.json())
-				.then(json =>
-					json.map(category => {
-						createElement(category);
+			function init() {
+				token = localStorage.getItem('token');
+
+				fetch(`${api}/categories`, {
+					headers: {
+						Authorization: `Bearer ${token} `,
+					},
+				})
+					.then(res => {
+						if (res.ok) {
+							document
+								.querySelector('#login')
+								.classList.add('d-none');
+							document
+								.querySelector('#main')
+								.classList.remove('d-none');
+							return res.json();
+						}
 					})
-				);
+					.then(json =>
+						json.map(category => {
+							createElement(category);
+						})
+					);
+			}
+
+			init();
+
+			document.querySelector('#login button').onclick = () => {
+				let email = document.querySelector('#email').value;
+				let password = document.querySelector('#password').value;
+
+				if (!email || !password) return false;
+
+				fetch(`${api}/login`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({ email, password }),
+				})
+					.then(res => {
+						if (res.ok) return res.text();
+						else alert('Incorrect Login');
+					})
+					.then(token => {
+						localStorage.setItem('token', token);
+						init();
+					});
+			};
+
+			document.querySelector('#logout').onclick = () => {
+				localStorage.removeItem('token');
+				// document.querySelector('#login').classList.remove('d-none');
+				// document.querySelector('#main').classList.add('d-none');
+			};
 
 			document.querySelector('#add').onclick = () => {
 				let name = document.querySelector('#new').value;
@@ -52,6 +133,7 @@
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
+						Authorization: `Bearer ${token}`,
 					},
 					body: JSON.stringify({ name }),
 				})
@@ -80,6 +162,7 @@
 						method: 'PUT',
 						headers: {
 							'Content-Type': 'application/json',
+							Authorization: `Bearer ${token}`,
 						},
 						body: JSON.stringify({ name: update }),
 					});
@@ -92,6 +175,9 @@
 				del.onclick = () => {
 					fetch(`${api}/categories/${category.id}`, {
 						method: 'DELETE',
+						headers: {
+							Authorization: `Bearer ${token}`,
+						},
 					});
 					li.remove();
 				};
